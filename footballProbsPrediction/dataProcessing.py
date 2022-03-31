@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 import datetime as dt
-import os, pickle, time
 from tqdm import tqdm
+from sklearn.preprocessing import RobustScaler,LabelEncoder
+import os, pickle, time
 
 """
 Possible handcrafted Features on 10 previous match:
@@ -25,7 +26,6 @@ def process_data(path,stage = 'train'):
 	"""
 	# loading the data
 	df = pd.read_csv(os.path.join(path,f'{stage}.csv'))
-
 	MASK = -1  # fill NA with -1
 	T_HIST = 10  # time history, last 10 games
 	# for cols "date", change to datatime
@@ -63,29 +63,34 @@ def process_data(path,stage = 'train'):
 	print('done')
 	df.fillna(MASK, inplace=True)
 	
+	# le = LabelEncoder()
+	# df['home_team_name'] = le.fit_transform(df['home_team_name'])
+	# df['away_team_name'] = le.fit_transform(df['away_team_name'])
+	# df['league_name'] = le.fit_transform(df['league_name'])
+	
 	# save targets
 	# y_train = train[['target_int']].to_numpy().reshape(-1, 1)
 	id = df['id'].copy()
-	y = df['target'].copy()
+	drop_list = ['id', 'target', 'home_team_name', 'away_team_name']
+	if stage =='train':
+		y = df['target'].copy()
+		drop_list.append('target')
+	else:
+		y = None
 	# keep only some features
-	df.drop(['id', 'target', 'home_team_name', 'away_team_name'], axis=1, inplace=True)
+	df.drop(drop_list, axis=1, inplace=True)
 	df['is_cup'] = df['is_cup'].replace({True: 1, False: 0})
 	# Exclude all date, league, coach columns
 	df.drop(df.filter(regex='date').columns, axis=1, inplace=True)
 	df.drop(df.filter(regex='league').columns, axis=1, inplace=True)
 	df.drop(df.filter(regex='coach').columns, axis=1, inplace=True)
-	
-	# from sklearn.preprocessing import LabelEncoder
-	# le = LabelEncoder()
-	# df_train['home_team_name'] = le.fit_transform(df_train['home_team_name'])
-	# df_train['away_team_name'] = le.fit_transform(df_train['away_team_name'])
-	# df_train['league_name'] = le.fit_transform(df_train['league_name'])
+
 	
 	# Store feature names
 	feature_names = list(df.columns)
 	# Scale features using statistics that are robust to outliers
-	# RS = RobustScaler()
-	# train = RS.fit_transform(train)
+	RS = RobustScaler()
+	df = RS.fit_transform(df)
 
 	# Back to pandas.dataframe
 	df = pd.DataFrame(df, columns=feature_names)
@@ -114,6 +119,16 @@ def process_data(path,stage = 'train'):
 	return x,y
 
 def simplePreProcess(path,stage = 'train'):
+	"""
+	
+	:param path:
+	:param stage:
+	:return:
+	
+	Possible new features:
+		num losses or wins in a row
+		
+	"""
 	df = pd.read_csv(os.path.join(path, f'{stage}.csv'))
 
 	MASK = -1  # fill NA with -1
@@ -130,7 +145,7 @@ def simplePreProcess(path,stage = 'train'):
 	                    'away_team_hist_win','away_team_hist_loss','away_team_hist_draw',
 	                    'home_team_num_expected_result','away_team_num_expected_result']
 	df[hist_sum_columns] = 0
-	for i in tqdm(range(1, 11)):  # range from 1 to 10
+	for i in tqdm(range(1, T_HIST +1)):  # range from 1 to 10
 		# Feat. difference of scored goals
 		for team in ['home','away']:
 			df[f'{team}_team_history_goals_scored'] += df[f'{team}_team_history_goal_{i}']
@@ -155,17 +170,21 @@ def simplePreProcess(path,stage = 'train'):
 	df.fillna(MASK, inplace=True)
 	
 	# save targets
-
+	drop_list = ['id', 'home_team_name', 'away_team_name']
 	id = df['id'].copy()
+	if stage =='train':
+		y = df['target'].copy()
+		drop_list.append('target')
+	else:
+		y = None
 
-	# keep only some features
-	df.drop(['id', 'target', 'home_team_name', 'away_team_name'], axis=1, inplace=True)
+	df.drop(drop_list, axis=1, inplace=True)
 	df['is_cup'] = df['is_cup'].replace({True: 1, False: 0})
 	# Exclude all date, league, coach columns
 	df.drop(df.filter(regex='date').columns, axis=1, inplace=True)
 	df.drop(df.filter(regex='league').columns, axis=1, inplace=True)
 	df.drop(df.filter(regex='coach').columns, axis=1, inplace=True)
-	for i in range(1,10):
+	for i in range(1,T_HIST):
 		df.drop(df.filter(regex=f'_{i}').columns, axis=1, inplace=True)
 
 	# Store feature names
@@ -176,62 +195,54 @@ def simplePreProcess(path,stage = 'train'):
 	
 	# Back to pandas.dataframe
 	df = pd.DataFrame(df, columns=feature_names)
-	df = pd.concat([id, df], axis=1)
+	df = pd.concat([id, df,y], axis=1)
 	return df
-	
 
 
-path = 'C:\\Users\\gcram\\Documents\\Datasets\\football-match-probability-prediction\\'
-df = simplePreProcess(path,stage = 'train')
-#X,y = process_data(path,stage = 'train')
 
-outfile = os.path.join(path, f'footbal_{stage}_processed')
-np.savez(outfile, X=X,y=y)
-
-
-from pytorch_lightning import LightningDataModule, LightningModule
-from torch.utils.data import Dataset,DataLoader
-
-
-class myDataset(Dataset):
-	"""
-	Class that recives the already processed data.
-	"""
-	def __init__(self,x,y):
-		self.x, self.y = x,y
-	def __len__(self):
-		return len(self.y)
-	def __getitem__(self, index):
-		return self.x[index],self.y[index]
-
-class MyDataModule(LightningDataModule):
-	def __init__(self ,batch_size, path):
-		super().__init__()
-		self.batch_size = batch_size
-		self.path_file = path
-		self.dataset = {}
-
-	def _setup(self):
-		for stage in ['train']:
-			outfile = os.path.join(self.path_file,f'footbal_{stage}_processed.npz')
-			
-			with np.load(outfile,allow_pickle=True) as tmp:
-				X = tmp['X']
-				y = tmp['y']
-			# split Train test
-			raise ValueError('Split train test')
-			self.dataset[stage] = myDataset(X, y)
-
-	def train_dataloader(self):
-		return DataLoader(self.dataset['train'],
-		                  drop_last=True,
-		                  batch_size=self.batch_size)
-	def val_dataloader(self):
-		return DataLoader(self.dataset['test'],
-		                  drop_last= True,
-		                  batch_size=self.batch_size)
-	def test_dataloader(self):
-		return DataLoader(self.dataset['test'],
-		                  drop_last= True,
-		                  batch_size=self.batch_size)
-	
+# from pytorch_lightning import LightningDataModule, LightningModule
+# from torch.utils.data import Dataset,DataLoader
+#
+#
+# class myDataset(Dataset):
+# 	"""
+# 	Class that recives the already processed data.
+# 	"""
+# 	def __init__(self,x,y):
+# 		self.x, self.y = x,y
+# 	def __len__(self):
+# 		return len(self.y)
+# 	def __getitem__(self, index):
+# 		return self.x[index],self.y[index]
+#
+# class MyDataModule(LightningDataModule):
+# 	def __init__(self ,batch_size, path):
+# 		super().__init__()
+# 		self.batch_size = batch_size
+# 		self.path_file = path
+# 		self.dataset = {}
+#
+# 	def _setup(self):
+# 		for stage in ['train']:
+# 			outfile = os.path.join(self.path_file,f'footbal_{stage}_processed.npz')
+#
+# 			with np.load(outfile,allow_pickle=True) as tmp:
+# 				X = tmp['X']
+# 				y = tmp['y']
+# 			# split Train test
+# 			raise ValueError('Split train test')
+# 			self.dataset[stage] = myDataset(X, y)
+#
+# 	def train_dataloader(self):
+# 		return DataLoader(self.dataset['train'],
+# 		                  drop_last=True,
+# 		                  batch_size=self.batch_size)
+# 	def val_dataloader(self):
+# 		return DataLoader(self.dataset['test'],
+# 		                  drop_last= True,
+# 		                  batch_size=self.batch_size)
+# 	def test_dataloader(self):
+# 		return DataLoader(self.dataset['test'],
+# 		                  drop_last= True,
+# 		                  batch_size=self.batch_size)
+#
