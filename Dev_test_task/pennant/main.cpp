@@ -14,7 +14,7 @@ double beta{0};
 double calculate_scope(const double pointA,const double pointB, const int steps_dist){
     double diff = pointA - pointB;
     double det = std::sqrt(std::pow(steps_dist,2) + std::pow(diff,2));
-    return std::asin(diff/det); // arendondar para 5 casas decimais.
+    return std::asin(diff/det);
 }
 void calculate(const std::vector<double> &inputs, std::vector<Angles> &result,
 int window)
@@ -60,14 +60,14 @@ int read_data(std::string filename,std::vector<double>& inputs){
     }
     return row;
 }
-void write_data(std::string filename,const std::vector<double>& inputs,const std::vector<Angles>& outputs){    
+void write_data(std::string filename,const std::vector<Angles>& outputs){    
     std::ofstream my_file;
     my_file.open(filename);
     Angles a_i;
-    const int n_rows = inputs.size();
+    const int n_rows = outputs.size();
     for(int i = 0; i<n_rows; i ++){
         a_i = outputs[i];
-        my_file << inputs[i] <<","<< a_i.alpha <<","<< a_i.beta <<"," <<"\n";
+        my_file << a_i.alpha <<","<< a_i.beta <<"," <<"\n";
     }
     my_file.close();
 }
@@ -78,7 +78,7 @@ int main()
     const int n_rows = read_data("data/input.csv",inputs);
     std::vector<Angles> outputs;
     outputs.reserve(inputs.size());
-    calculate(inputs, outputs, 10);
-    write_data("output/window_" + std::to_string(window_size) + ".csv",inputs,outputs);
+    calculate(inputs, outputs, window_size);
+    write_data("output/window_" + std::to_string(window_size) + ".csv",outputs);
     return 0;
 }
