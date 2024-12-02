@@ -5,6 +5,10 @@ __pycache__/
 
 # C extensions
 *.so
+*.pdb
+*.obj
+*.ilk
+*.exe
 
 # Distribution / packaging
 .Python
@@ -130,3 +134,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Data
+*.csv
+*.xlsx
+*.zip
