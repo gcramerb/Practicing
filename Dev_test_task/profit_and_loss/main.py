@@ -23,8 +23,8 @@ def plot_prof_n_loss(df:pd.DataFrame):
         line={'color': 'gray'}
     )
     fig = go.Figure(data=trace)
-    #fig.update_layout(title = "Profit and Loss")
-    fig.write_image("./Dev_test_task/profit_and_loss/output/profit_n_loss.pdf")
+    fig.update_layout(title = "Profit and Loss")
+    fig.write_html("./Dev_test_task/profit_and_loss/output/profit_n_loss.html")
     fig.show()
 if __name__=="__main__":
     filepath = "./Dev_test_task/profit_and_loss/data/test_logs.csv"
