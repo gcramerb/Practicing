@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
+import os.path
 
 def calculate_profit_n_loss(df:pd.DataFrame):
     filtered_df = df[df['action'] == "filled"]
@@ -9,7 +10,7 @@ def calculate_profit_n_loss(df:pd.DataFrame):
     filtered_df.loc[:,"profit_n_loss"] = filtered_df.loc[:,"operation_value"].cumsum()
     return filtered_df
 
-def plot_prof_n_loss(df):
+def plot_prof_n_loss(df:pd.DataFrame):
     cutoff = 0
     x = df["currentTime"]
     y = df["profit_n_loss"]
@@ -22,18 +23,20 @@ def plot_prof_n_loss(df):
         line={'color': 'gray'}
     )
     fig = go.Figure(data=trace)
-    #fig.update_layout(title_text="Profit and Loss")
+    #fig.update_layout(title = "Profit and Loss")
     fig.write_image("./Dev_test_task/profit_and_loss/output/profit_n_loss.pdf")
     fig.show()
 if __name__=="__main__":
-    cumulative_PnL = []
-    product_PnL = {}
-    df= pd.read_csv("./Dev_test_task/profit_and_loss/data/test_logs.csv", sep = ";")
+    filepath = "./Dev_test_task/profit_and_loss/data/test_logs.csv"
+    if not os.path.isfile(filepath):
+        print("File does not exists")
+    df= pd.read_csv(filepath, sep = ";")
     df_prof_loss = calculate_profit_n_loss(df)
-    df_by_product = [x for _, x in df.groupby('orderProduct')]
-    for df_i in df_by_product:
+    df_by_product = [(id_,x) for id_, x in df.groupby('orderProduct')]
+    product_PnL = {}
+    for security_id,df_i in df_by_product:
         df_by_product_i = calculate_profit_n_loss(df_i)
-        product_PnL[df_by_product_i.iloc[0]["orderProduct"]] = df_by_product_i.iloc[-1]["profit_n_loss"]    
+        product_PnL[security_id] = df_by_product_i.iloc[-1]["profit_n_loss"]    
     totalPnL = df_prof_loss.iloc[-1]["profit_n_loss"]
     print(f"Total gross PnL: {totalPnL}")
     print(f"Total gross PnL over each security ID: {product_PnL}")
