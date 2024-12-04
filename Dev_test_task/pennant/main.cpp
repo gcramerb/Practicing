@@ -7,43 +7,47 @@
 #include <math.h>
 const int MAX_ROWS = 100000;
 struct Angles {
-double alpha{0};
-double beta{0};
+    double alpha{0};
+    double beta{0};
 };
-
+double PI = 2*asin(1.0);
 double calculate_scope(const double pointA,const double pointB, const int steps_dist){
     double diff = pointA - pointB;
     double det = std::sqrt(std::pow(steps_dist,2) + std::pow(diff,2));
     return std::asin(diff/det);
 }
-void calculate(const std::vector<double> &inputs, std::vector<Angles> &result,
+Angles calculate_window(const int i, const std::vector<double> &inputs, const int window_size){
+    Angles angle_i;
+    if(i<= 0){
+        return angle_i;
+    }
+    angle_i.alpha = -1 * PI * 2;
+    angle_i.beta = PI * 2;
+    int j = i -1;
+    double slope;
+    while (j >= 0 && j > i -window_size)
+    {
+        slope = calculate_scope(inputs[j],inputs[i],i-j);
+        if(slope > angle_i.alpha){
+            angle_i.alpha = slope;
+        }
+        if(slope < angle_i.beta){
+            angle_i.beta = slope;
+        }
+        j--;
+    }
+    return angle_i;
+}
+void calculate(const std::vector<double> &inputs, std::vector<Angles> &outputs,
 int window)
 {
     const int n_rows = inputs.size();
-    int j;
-    double pi = 2*asin(1.0);
-    for(int i = 1; i<n_rows; i ++){
-        j = i -1;
-        double alpha = -1 * pi * 2;
-        double beta = pi * 2;
-        while (j >= 0 && j > i -window)
-        {
-            double slope = calculate_scope(inputs[j],inputs[i],i-j);
-            if(slope > alpha){
-                alpha = slope;
-            }
-            if(slope < beta){
-                beta = slope;
-            }
-            j--;
-        }
-        Angles angle_i;
-        angle_i.alpha = alpha;
-        angle_i.beta = beta;
-        result[i] = angle_i;
+    for(int i = 0; i<n_rows; i ++){
+        Angles angle_i = calculate_window(i,inputs,window);
+        outputs.push_back(angle_i);
     }
 }
-int read_data(std::string filename,std::vector<double>& inputs){
+int read_data(const std::string filename,std::vector<double>& inputs){
     std::string line;
     int row = 0;
     std::ifstream file(filename);
@@ -60,14 +64,11 @@ int read_data(std::string filename,std::vector<double>& inputs){
     }
     return row;
 }
-void write_data(std::string filename,const std::vector<Angles>& outputs){    
+void write_data(const std::string filename,const std::vector<Angles>& outputs){    
     std::ofstream my_file;
     my_file.open(filename);
-    Angles a_i;
-    const int n_rows = outputs.size();
-    for(int i = 0; i<n_rows; i ++){
-        a_i = outputs[i];
-        my_file << a_i.alpha <<","<< a_i.beta <<"," <<"\n";
+    for(const auto &angle_i: outputs){
+        my_file << angle_i.alpha <<","<< angle_i.beta <<"," <<"\n";
     }
     my_file.close();
 }
@@ -76,6 +77,9 @@ int main()
     int window_size = 10;
     std::vector<double> inputs(MAX_ROWS);
     const int n_rows = read_data("data/input.csv",inputs);
+    if(n_rows == 0){
+        return 0;
+    }
     std::vector<Angles> outputs;
     outputs.reserve(inputs.size());
     calculate(inputs, outputs, window_size);
