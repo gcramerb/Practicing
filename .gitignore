@@ -139,3 +139,5 @@ dmypy.json
 *.csv
 *.xlsx
 *.zip
+.vs/
+CppProperties.json

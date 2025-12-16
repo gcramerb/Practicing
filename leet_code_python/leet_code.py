@@ -381,12 +381,42 @@ class Solution2316:
 def run2316():
     s = Solution2316()
     s.countPairs(20,[[13,3],[10,1],[6,2],[7,8],[15,0],[0,2],[9,1],[7,11],[3,0],[3,5],[2,7],[6,17],[12,11],[6,16],[3,4],[14,9],[1,0],[18,2],[1,19]])
+
+class Solution419:
+    def __init__(self):
+        self._num_ships =0
+    def countBattleships(self, board: List[List[str]]) -> int:
+        self._board = board
+        self._rows = len(board)
+        self._cols = len(board[0])
+        self._visited =[[False] * self._cols for _ in range(self._rows)] 
+        self.dfs_count(0,0)
+        return self._num_ships
+
+    def dfs_count(self,i,j):
+        if i >= self._rows:
+            return
+        if j >= self._cols:
+            return
+        if self._visited[i][j]:
+            return
+        self._visited[i][j] = True
+        ship_part = False
+        if i > 0:
+            if self._board[i -1 ][j] == "X":
+                ship_part = True 
+        if j > 0:
+            if self._board[i][j -1] == "X":
+                ship_part = True
+        
+        if self._board[i][j] == "X" and not ship_part:
+            self._num_ships +=1
+        self.dfs_count(i+1,j)
+        self.dfs_count(i,j+1)
+    def run(self):
+        board = [["X",".",".","X"],[".",".",".","X"],[".",".",".","X"]]
+        return self.countBattleships(board)
+
 if __name__ == "__main__":
-    #s = Solution1026()
-    #s = Solution1110()
-    #null = None
-    #root = createTree([1,2,3,4,5,6,7])
-    #root = s.createTree([8,3,10,1,6,null,14,null,null,4,7,13])
-    #s.printTree(root)
-    #res = s.delNodes(root,[3,5])
-    run2316()
+    s= Solution419()
+    print(s.run())
